@@ -179,11 +179,13 @@ public:
 
     Init();
 
-    FillRect(0, 0, width_, height_, Color::BLUE);
+    FillRect(0, 0, width_, height_, Color::WHITE);
 
-    char text[] = "XRobot ST7735 Driver";
+    char init_msg[] = "XRobot ST7735 Driver";
+    char project_url[] = "xrobot-org.github.io";
 
-    ShowString(Color::RED, Color::BLACK, 0, 58, width_, 16, 16, text);
+    ShowString(Color::BLACK, Color::WHITE, 0, 0, width_, 16, 12, init_msg);
+    ShowString(Color::BLACK, Color::WHITE, 0, 12, width_, 16, 12, project_url);
 
     app.Register(*this);
   }

@@ -182,7 +182,7 @@ public:
     FillRect(0, 0, width_, height_, Color::WHITE);
 
     char init_msg[] = "XRobot ST7735 Driver";
-    char project_url[] = "xrobot-org.github.io";
+    char project_url[] = "xrobot.work";
 
     ShowString(Color::BLACK, Color::WHITE, 0, 0, width_, 16, 12, init_msg);
     ShowString(Color::BLACK, Color::WHITE, 0, 12, width_, 16, 12, project_url);

@@ -3,33 +3,26 @@
 // clang-format off
 /* === MODULE MANIFEST V2 ===
 module_description: ST7735 显示屏驱动 / ST7735 display driver
-constructor_args: 
-  - panel: ST7735::PanelType::HANNSTAR_PANEL
-  - type: ST7735::ScreenType::SCREEN_0_9
-  - orientation: ST7735::Orientation::LANDSCAPE
-  - format: ST7735::PixelFormat::FORMAT_RGB565
-template_args: []
-required_hardware:
-  - st7735_spi
-  - st7735_spi_cs
-  - st7735_spi_rs
-  - st7735_pwm
 depends: []
 === END MANIFEST === */
 // clang-format on
 
-#include "app_framework.hpp"
+#include <cstdint>
+#include <memory>
+
 #include "font.h"
 #include "gpio.hpp"
 #include "libxr_type.hpp"
 #include "pwm.hpp"
 #include "semaphore.hpp"
 #include "spi.hpp"
-#include <cstdint>
+#include "thread.hpp"
 
-class ST7735 : public LibXR::Application {
-public:
-  enum Command : uint8_t {
+class ST7735
+{
+ public:
+  enum Command : uint8_t
+  {
     NOP = 0x00,
     SW_RESET = 0x01,
     READ_ID = 0x04,
@@ -88,17 +81,23 @@ public:
   };
 
   /// 屏幕尺寸 / Screen size
-  enum ScreenType : uint8_t {
+  enum ScreenType : uint8_t
+  {
     SCREEN_1_8 = 0x00,
     SCREEN_0_9 = 0x01,
     SCREEN_1_8A = 0x02
   };
 
   /// 面板类型 / Panel type
-  enum PanelType : uint8_t { HANNSTAR_PANEL = 0x00, BOE_PANEL = 0x01 };
+  enum PanelType : uint8_t
+  {
+    HANNSTAR_PANEL = 0x00,
+    BOE_PANEL = 0x01
+  };
 
   /// 方向 / Orientation
-  enum Orientation : uint8_t {
+  enum Orientation : uint8_t
+  {
     PORTRAIT = 0x00,
     PORTRAIT_ROT180 = 0x01,
     LANDSCAPE = 0x02,
@@ -106,7 +105,8 @@ public:
   };
 
   /// 像素格式 / Pixel format
-  enum PixelFormat : uint8_t {
+  enum PixelFormat : uint8_t
+  {
     FORMAT_RGB444 = 0x03,
     FORMAT_RGB565 = 0x05,
     FORMAT_RGB666 = 0x06,
@@ -124,10 +124,15 @@ public:
       {0x40U, 0xC0U}, {0x80U, 0x00U}, {0x20U, 0x60U}, {0xE0U, 0xA0U}};
 
   /// RGB/BGR
-  enum RGBOrder : uint8_t { LCD_RGB = 0x00, LCD_BGR = 0x08 };
+  enum RGBOrder : uint8_t
+  {
+    LCD_RGB = 0x00,
+    LCD_BGR = 0x08
+  };
 
   /// 颜色
-  enum Color : uint16_t {
+  enum Color : uint16_t
+  {
     WHITE = 0xFFFF,
     BLACK = 0x0000,
     BLUE = 0x001F,
@@ -147,23 +152,21 @@ public:
     GRAYBLUE = 0x5458
   };
 
-  ST7735(LibXR::HardwareContainer &hw, LibXR::ApplicationManager &app,
-         PanelType panel, ScreenType type, Orientation orientation,
-         PixelFormat format)
-      : panel_(panel), type_(type), orientation_(orientation),
-        color_coding_(format) {
-    st7735_spi_cs_ = hw.template FindOrExit<LibXR::GPIO>({"st7735_spi_cs"});
-    st7735_spi_rs_ = hw.template FindOrExit<LibXR::GPIO>({"st7735_spi_rs"});
-    st7735_pwm_ = hw.template FindOrExit<LibXR::PWM>({"st7735_pwm"});
-    st7735_spi_ = hw.template FindOrExit<LibXR::SPI>({"st7735_spi"});
+  ST7735(LibXR::GPIO& external_st7735_spi_cs, LibXR::GPIO& external_st7735_spi_rs,
+         LibXR::PWM& external_st7735_pwm, LibXR::SPI& external_st7735_spi,
+         PanelType panel, ScreenType type, Orientation orientation, PixelFormat format)
+      : panel_(panel), type_(type), orientation_(orientation), color_coding_(format)
+  {
+    st7735_spi_cs_ = std::addressof(external_st7735_spi_cs);
+    st7735_spi_rs_ = std::addressof(external_st7735_spi_rs);
+    st7735_pwm_ = std::addressof(external_st7735_pwm);
+    st7735_spi_ = std::addressof(external_st7735_spi);
 
-    st7735_spi_cs_->SetConfig(
-        {.direction = LibXR::GPIO::Direction::OUTPUT_PUSH_PULL,
-         .pull = LibXR::GPIO::Pull::NONE});
+    st7735_spi_cs_->SetConfig({.direction = LibXR::GPIO::Direction::OUTPUT_PUSH_PULL,
+                               .pull = LibXR::GPIO::Pull::NONE});
 
-    st7735_spi_rs_->SetConfig(
-        {.direction = LibXR::GPIO::Direction::OUTPUT_PUSH_PULL,
-         .pull = LibXR::GPIO::Pull::NONE});
+    st7735_spi_rs_->SetConfig({.direction = LibXR::GPIO::Direction::OUTPUT_PUSH_PULL,
+                               .pull = LibXR::GPIO::Pull::NONE});
 
     st7735_spi_cs_->Write(true);
     st7735_spi_rs_->Write(true);
@@ -186,28 +189,30 @@ public:
 
     ShowString(Color::BLACK, Color::WHITE, 0, 0, width_, 16, 12, init_msg);
     ShowString(Color::BLACK, Color::WHITE, 0, 12, width_, 16, 12, project_url);
-
-    app.Register(*this);
   }
 
-  void WriteReg(uint8_t reg, LibXR::RawData data) {
+  void WriteReg(uint8_t reg, LibXR::RawData data)
+  {
     st7735_spi_cs_->Write(false);
     st7735_spi_rs_->Write(false);
     st7735_spi_->Write(reg, spi_op_);
     st7735_spi_rs_->Write(true);
-    if (data.size_ > 0) {
+    if (data.size_ > 0)
+    {
       st7735_spi_->Write(data, spi_op_);
     }
     st7735_spi_cs_->Write(true);
   }
 
-  void SendData(LibXR::RawData data) {
+  void SendData(LibXR::RawData data)
+  {
     st7735_spi_cs_->Write(false);
     st7735_spi_->Write(data, spi_op_);
     st7735_spi_cs_->Write(true);
   }
 
-  void Init() {
+  void Init()
+  {
     uint8_t tmp;
 
     // Out of sleep mode, 0 args, delay 120ms
@@ -293,9 +298,12 @@ public:
     WriteReg(Command::VCOMH_VCOML_CTRL1, {&tmp, 1});
 
     // choose panel_
-    if (panel_ == PanelType::HANNSTAR_PANEL) {
+    if (panel_ == PanelType::HANNSTAR_PANEL)
+    {
       WriteReg(Command::DISPLAY_INVERSION_ON, {&tmp, 0});
-    } else {
+    }
+    else
+    {
       WriteReg(Command::DISPLAY_INVERSION_OFF, {&tmp, 0});
     }
     // Set color mode, 1 arg, no delay
@@ -380,25 +388,33 @@ public:
     SetOrientation();
   }
 
-  void SetOrientation() {
+  void SetOrientation()
+  {
     uint8_t tmp;
 
     if ((orientation_ == Orientation::PORTRAIT) ||
-        (orientation_ == Orientation::PORTRAIT_ROT180)) {
-      if (type_ == ScreenType::SCREEN_0_9) {
+        (orientation_ == Orientation::PORTRAIT_ROT180))
+    {
+      if (type_ == ScreenType::SCREEN_0_9)
+      {
         width_ = WIDTH_0_9;
         height_ = HEIGHT_0_9;
-      } else if (type_ == ScreenType::SCREEN_1_8 ||
-                 type_ == ScreenType::SCREEN_1_8A) {
+      }
+      else if (type_ == ScreenType::SCREEN_1_8 || type_ == ScreenType::SCREEN_1_8A)
+      {
         width_ = WIDTH_1_8;
         height_ = HEIGHT_1_8;
       }
-    } else {
-      if (type_ == ScreenType::SCREEN_0_9) {
+    }
+    else
+    {
+      if (type_ == ScreenType::SCREEN_0_9)
+      {
         width_ = HEIGHT_0_9;
         height_ = WIDTH_0_9;
-      } else if (type_ == ScreenType::SCREEN_1_8 ||
-                 type_ == ScreenType::SCREEN_1_8A) {
+      }
+      else if (type_ == ScreenType::SCREEN_1_8 || type_ == ScreenType::SCREEN_1_8A)
+      {
         width_ = HEIGHT_1_8;
         height_ = WIDTH_1_8;
       }
@@ -417,36 +433,54 @@ public:
     WriteReg(Command::MADCTL, {&tmp, 1});
   }
 
-  void SetDisplayWindow(uint32_t Xpos, uint32_t Ypos) {
+  void SetDisplayWindow(uint32_t Xpos, uint32_t Ypos)
+  {
     uint8_t tmp;
 
     // Cursor calibration
-    if (orientation_ <= Orientation::PORTRAIT_ROT180) {
-      if (type_ == ScreenType::SCREEN_0_9) { // 0.96 ST7735
-        if (panel_ == PanelType::HANNSTAR_PANEL) {
+    if (orientation_ <= Orientation::PORTRAIT_ROT180)
+    {
+      if (type_ == ScreenType::SCREEN_0_9)
+      {  // 0.96 ST7735
+        if (panel_ == PanelType::HANNSTAR_PANEL)
+        {
           Xpos += 26;
           Ypos += 1;
-        } else { // BOE Panel
+        }
+        else
+        {  // BOE Panel
           Xpos += 24;
           Ypos += 0;
         }
-      } else if (type_ == ScreenType::SCREEN_1_8A) {
-        if (panel_ == PanelType::BOE_PANEL) {
+      }
+      else if (type_ == ScreenType::SCREEN_1_8A)
+      {
+        if (panel_ == PanelType::BOE_PANEL)
+        {
           Xpos += 2;
           Ypos += 1;
         }
       }
-    } else {
-      if (type_ == ScreenType::SCREEN_0_9) {
-        if (panel_ == PanelType::HANNSTAR_PANEL) { // 0.96 ST7735
+    }
+    else
+    {
+      if (type_ == ScreenType::SCREEN_0_9)
+      {
+        if (panel_ == PanelType::HANNSTAR_PANEL)
+        {  // 0.96 ST7735
           Xpos += 1;
           Ypos += 26;
-        } else { // BOE Panel
+        }
+        else
+        {  // BOE Panel
           Xpos += 1;
           Ypos += 24;
         }
-      } else if (type_ == ScreenType::SCREEN_1_8A) {
-        if (panel_ == PanelType::BOE_PANEL) {
+      }
+      else if (type_ == ScreenType::SCREEN_1_8A)
+      {
+        if (panel_ == PanelType::BOE_PANEL)
+        {
           Xpos += 1;
           Ypos += 2;
         }
@@ -479,68 +513,87 @@ public:
   }
 
   void FillRect(uint32_t Xpos, uint32_t Ypos, uint32_t Width, uint32_t Height,
-                uint32_t Color) {
-    if (((Xpos + Width) > width_) || ((Ypos + Height) > height_))
-      return;
+                uint32_t Color)
+  {
+    if (((Xpos + Width) > width_) || ((Ypos + Height) > height_)) return;
 
     SetWindow(Xpos, Ypos, Xpos + Width - 1, Ypos + Height - 1);
 
     // 分配整块颜色数据 / Allocate a block of color data
     uint32_t pixelCount = Width * Height;
-    static uint8_t buf[2048]; // 2KB
+    static uint8_t buf[2048];  // 2KB
     uint32_t remain = pixelCount;
     uint8_t hi = Color >> 8, lo = Color & 0xFF;
 
     // 填充缓冲区 / Fill the buffer
-    for (uint32_t i = 0; i < sizeof(buf) / 2; ++i) {
+    for (uint32_t i = 0; i < sizeof(buf) / 2; ++i)
+    {
       buf[2 * i] = hi;
       buf[2 * i + 1] = lo;
     }
 
     // 分批发送 / Send in batches
-    while (remain > 0) {
+    while (remain > 0)
+    {
       uint32_t chunk = remain > (sizeof(buf) / 2) ? (sizeof(buf) / 2) : remain;
       SendData({buf, chunk * 2});
       remain -= chunk;
     }
   }
 
-  void SetWindow(uint32_t Xpos0, uint32_t Ypos0, uint32_t Xpos1,
-                 uint32_t Ypos1) {
+  void SetWindow(uint32_t Xpos0, uint32_t Ypos0, uint32_t Xpos1, uint32_t Ypos1)
+  {
     uint8_t tmp;
 
-    if (orientation_ <= Orientation::PORTRAIT_ROT180) {
-      if (type_ == ScreenType::SCREEN_0_9) { // 0.96寸
-        if (panel_ == PanelType::HANNSTAR_PANEL) {
+    if (orientation_ <= Orientation::PORTRAIT_ROT180)
+    {
+      if (type_ == ScreenType::SCREEN_0_9)
+      {  // 0.96寸
+        if (panel_ == PanelType::HANNSTAR_PANEL)
+        {
           Xpos0 += 26;
           Xpos1 += 26;
           Ypos0 += 1;
           Ypos1 += 1;
-        } else { // BOE Panel
+        }
+        else
+        {  // BOE Panel
           Xpos0 += 24;
           Xpos1 += 24;
         }
-      } else if (type_ == ScreenType::SCREEN_1_8A) {
-        if (panel_ == PanelType::BOE_PANEL) {
+      }
+      else if (type_ == ScreenType::SCREEN_1_8A)
+      {
+        if (panel_ == PanelType::BOE_PANEL)
+        {
           Xpos0 += 2;
           Xpos1 += 2;
           Ypos0 += 1;
           Ypos1 += 1;
         }
       }
-    } else {
-      if (type_ == ScreenType::SCREEN_0_9) {
-        if (panel_ == PanelType::HANNSTAR_PANEL) {
+    }
+    else
+    {
+      if (type_ == ScreenType::SCREEN_0_9)
+      {
+        if (panel_ == PanelType::HANNSTAR_PANEL)
+        {
           Xpos0 += 1;
           Xpos1 += 1;
           Ypos0 += 26;
           Ypos1 += 26;
-        } else { // BOE Panel
+        }
+        else
+        {  // BOE Panel
           Ypos0 += 24;
           Ypos1 += 24;
         }
-      } else if (type_ == ScreenType::SCREEN_1_8A) {
-        if (panel_ == PanelType::BOE_PANEL) {
+      }
+      else if (type_ == ScreenType::SCREEN_1_8A)
+      {
+        if (panel_ == PanelType::BOE_PANEL)
+        {
           Xpos0 += 1;
           Xpos1 += 1;
           Ypos0 += 2;
@@ -572,27 +625,29 @@ public:
     WriteReg(Command::WRITE_RAM, {nullptr, 0});
   }
 
-  void ShowString(uint16_t point_color, uint16_t back_color, uint16_t x,
-                  uint16_t y, uint16_t width, uint16_t height, uint8_t size,
-                  const char *data) {
+  void ShowString(uint16_t point_color, uint16_t back_color, uint16_t x, uint16_t y,
+                  uint16_t width, uint16_t height, uint8_t size, const char* data)
+  {
     uint8_t x0 = x;
     width += x;
     height += y;
-    while ((*data <= '~') && (*data >= ' ')) {
-      if (x >= width) {
+    while ((*data <= '~') && (*data >= ' '))
+    {
+      if (x >= width)
+      {
         x = x0;
         y += size;
       }
-      if (y >= height)
-        break;
+      if (y >= height) break;
       ShowChar(point_color, back_color, x, y, *data, size);
       x += size / 2;
       data++;
     }
   }
 
-  void ShowChar(uint16_t point_color, uint16_t back_color, uint16_t x,
-                uint16_t y, uint8_t num, uint8_t size) {
+  void ShowChar(uint16_t point_color, uint16_t back_color, uint16_t x, uint16_t y,
+                uint8_t num, uint8_t size)
+  {
     uint8_t temp, t1, t;
     uint16_t y0 = y;
     uint16_t x0 = x;
@@ -605,13 +660,15 @@ public:
     num = num - ' ';
     count = 0;
 
-    for (t = 0; t < size; t++) {
+    for (t = 0; t < size; t++)
+    {
       if (size == 12)
         temp = asc2_1206[num][t];
       else
         temp = asc2_1608[num][t];
 
-      for (t1 = 0; t1 < 8; t1++) {
+      for (t1 = 0; t1 < 8; t1++)
+      {
         if (temp & 0x80)
           point_color = (colortemp & 0xFF) << 8 | colortemp >> 8;
         else
@@ -619,19 +676,21 @@ public:
 
         write[count * length + t / 2] = point_color;
         count++;
-        if (count >= size)
-          count = 0;
+        if (count >= size) count = 0;
 
         temp <<= 1;
         y++;
-        if (y >= height_) {
+        if (y >= height_)
+        {
           point_color = colortemp;
           return;
         }
-        if ((y - y0) == size) {
+        if ((y - y0) == size)
+        {
           y = y0;
           x++;
-          if (x >= width_) {
+          if (x >= width_)
+          {
             point_color = colortemp;
             return;
           }
@@ -640,13 +699,15 @@ public:
       }
     }
 
-    FillRGBRect(x0, y0, (uint8_t *)&write, size == 12 ? 6 : 8, size);
+    FillRGBRect(x0, y0, (uint8_t*)&write, size == 12 ? 6 : 8, size);
     point_color = colortemp;
   }
 
-  void FillRGBRect(uint32_t Xpos, uint32_t Ypos, uint8_t *pData, uint32_t Width,
-                   uint32_t Height) {
-    if (((Xpos + Width) > width_) || ((Ypos + Height) > height_)) {
+  void FillRGBRect(uint32_t Xpos, uint32_t Ypos, uint8_t* pData, uint32_t Width,
+                   uint32_t Height)
+  {
+    if (((Xpos + Width) > width_) || ((Ypos + Height) > height_))
+    {
       return;
     }
 
@@ -655,24 +716,22 @@ public:
     SendData({pData, Width * Height * 2});
   }
 
-  void SetBrightness(float brightness) {
-    st7735_pwm_->SetDutyCycle(brightness);
-  }
+  void SetBrightness(float brightness) { st7735_pwm_->SetDutyCycle(brightness); }
 
   uint16_t GetWidth() { return width_; }
   uint16_t GetHeight() { return height_; }
 
-  void OnMonitor() override {}
+  void OnMonitor() {}
 
-private:
+ private:
   PanelType panel_ = PanelType::HANNSTAR_PANEL;
   ScreenType type_ = ScreenType::SCREEN_0_9;
   Orientation orientation_ = Orientation::LANDSCAPE_ROT180;
   PixelFormat color_coding_ = PixelFormat::FORMAT_RGB565;
 
   LibXR::GPIO *st7735_spi_cs_, *st7735_spi_rs_;
-  LibXR::PWM *st7735_pwm_;
-  LibXR::SPI *st7735_spi_;
+  LibXR::PWM* st7735_pwm_;
+  LibXR::SPI* st7735_spi_;
 
   uint32_t width_ = 0, height_ = 0;
 

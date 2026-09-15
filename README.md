@@ -1,13 +1,24 @@
 # ST7735
 
-ST7735 显示屏驱动  
+## Static assembly source line
+
+This source line uses explicit C++ constructor dependencies and ordered instance
+arguments. Inspect the current primary header with `xrobot_mod_parser --path .`;
+its declarations, not old manifest/config examples, define the interface.
+Historical HardwareContainer/ApplicationManager examples below apply only to the
+older dynamic source tags. Device/protocol descriptions remain relevant.
+See the XRobot [migration guide](https://github.com/xrobot-org/XRobot/blob/dev/MIGRATION.md).
+Compilation is not hardware validation; retain version-specific board evidence.
+
+
+ST7735 显示屏驱动
 ST7735 display driver
 
 ---
 
 ## 简介 / Overview
 
-本模块为 ST7735 彩色 LCD 显示屏驱动，适配 0.96/1.8 英寸多种面板，支持 SPI 通信，支持亮度调节和多种显示方向配置。  
+本模块为 ST7735 彩色 LCD 显示屏驱动，适配 0.96/1.8 英寸多种面板，支持 SPI 通信，支持亮度调节和多种显示方向配置。
 This module provides a flexible and high-performance driver for ST7735 color LCDs (0.96", 1.8", various panels), supporting SPI interface, brightness control and multiple display orientations.
 
 ---

@@ -152,15 +152,21 @@ class ST7735
     GRAYBLUE = 0x5458
   };
 
-  ST7735(LibXR::GPIO& external_st7735_spi_cs, LibXR::GPIO& external_st7735_spi_rs,
-         LibXR::PWM& external_st7735_pwm, LibXR::SPI& external_st7735_spi,
-         PanelType panel, ScreenType type, Orientation orientation, PixelFormat format)
+  ST7735(
+      LibXR::GPIO& spi_cs,
+      LibXR::GPIO& spi_rs,
+      LibXR::PWM& pwm,
+      LibXR::SPI& spi,
+      PanelType panel = ST7735::PanelType::HANNSTAR_PANEL,
+      ScreenType type = ST7735::ScreenType::SCREEN_0_9,
+      Orientation orientation = ST7735::Orientation::LANDSCAPE,
+      PixelFormat format = ST7735::PixelFormat::FORMAT_RGB565)
       : panel_(panel), type_(type), orientation_(orientation), color_coding_(format)
   {
-    st7735_spi_cs_ = std::addressof(external_st7735_spi_cs);
-    st7735_spi_rs_ = std::addressof(external_st7735_spi_rs);
-    st7735_pwm_ = std::addressof(external_st7735_pwm);
-    st7735_spi_ = std::addressof(external_st7735_spi);
+    st7735_spi_cs_ = std::addressof(spi_cs);
+    st7735_spi_rs_ = std::addressof(spi_rs);
+    st7735_pwm_ = std::addressof(pwm);
+    st7735_spi_ = std::addressof(spi);
 
     st7735_spi_cs_->SetConfig({.direction = LibXR::GPIO::Direction::OUTPUT_PUSH_PULL,
                                .pull = LibXR::GPIO::Pull::NONE});

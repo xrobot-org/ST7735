@@ -727,8 +727,6 @@ class ST7735
   uint16_t GetWidth() { return width_; }
   uint16_t GetHeight() { return height_; }
 
-  void OnMonitor() {}
-
  private:
   PanelType panel_ = PanelType::HANNSTAR_PANEL;
   ScreenType type_ = ScreenType::SCREEN_0_9;

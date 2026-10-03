@@ -69,7 +69,7 @@ ST7735(LibXR::GPIO& spi_cs, LibXR::GPIO& spi_rs, LibXR::PWM& pwm,
 - `panel`：面板厂商 `HANNSTAR_PANEL` 或 `BOE_PANEL`，默认 `HANNSTAR_PANEL`。
 - `type`：屏幕尺寸 `SCREEN_0_9`、`SCREEN_1_8` 或 `SCREEN_1_8A`，默认 `SCREEN_0_9`。
 - `orientation`：显示方向 `PORTRAIT`、`PORTRAIT_ROT180`、`LANDSCAPE` 或 `LANDSCAPE_ROT180`，默认 `LANDSCAPE`。
-- `format`：写入 `COLOR_MODE` 的像素格式 `FORMAT_RGB444`、`FORMAT_RGB565` 或 `FORMAT_RGB666`，默认 `FORMAT_RGB565`。绘图函数按每像素 2 字节写入，与 RGB565 对应。
+- `format`：写入 `COLOR_MODE` 的像素格式 `FORMAT_RGB444`、`FORMAT_RGB565` 或 `FORMAT_RGB666`，默认 `FORMAT_RGB565`。绘图函数写入 RGB565 颜色，每像素 2 字节。
 
 Dependencies:
 
@@ -83,7 +83,7 @@ Configuration parameters:
 - `panel`: panel vendor, `HANNSTAR_PANEL` or `BOE_PANEL`, default `HANNSTAR_PANEL`.
 - `type`: screen size, `SCREEN_0_9`, `SCREEN_1_8` or `SCREEN_1_8A`, default `SCREEN_0_9`.
 - `orientation`: display orientation, `PORTRAIT`, `PORTRAIT_ROT180`, `LANDSCAPE` or `LANDSCAPE_ROT180`, default `LANDSCAPE`.
-- `format`: pixel format written to `COLOR_MODE`, `FORMAT_RGB444`, `FORMAT_RGB565` or `FORMAT_RGB666`, default `FORMAT_RGB565`. The drawing functions write 2 bytes per pixel, which corresponds to RGB565.
+- `format`: pixel format written to `COLOR_MODE`, `FORMAT_RGB444`, `FORMAT_RGB565` or `FORMAT_RGB666`, default `FORMAT_RGB565`. The drawing functions write RGB565 colors, 2 bytes per pixel.
 
 ## 4. Topic
 
@@ -98,7 +98,7 @@ An instance written by `xrobot instance add xrobot-org/ST7735`, with the depende
 ```yaml
 modules:
   - module: xrobot-org/ST7735
-    id: st7735
+    id: st7735_0
     args:
       - spi_cs: st7735_spi_cs
       - spi_rs: st7735_spi_rs

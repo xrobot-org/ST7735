@@ -2,7 +2,7 @@
 
 // clang-format off
 /* === MODULE MANIFEST V2 ===
-module_description: ST7735 显示屏驱动 / ST7735 display driver
+module_description: ST7735 彩色 LCD 显示屏驱动模块（SPI），适配 0.96 / 1.8 英寸面板 / Driver module for ST7735 color LCDs over SPI (0.96" and 1.8" panels)
 depends: []
 === END MANIFEST === */
 // clang-format on
@@ -221,7 +221,7 @@ class ST7735
   {
     uint8_t tmp;
 
-    // Out of sleep mode, 0 args, delay 120ms
+    // Software reset, 0 args, delay 120ms
     tmp = 0x00U;
     WriteReg(Command::SW_RESET, {&tmp, 0});
     LibXR::Thread::Sleep(120);
@@ -315,7 +315,7 @@ class ST7735
     // Set color mode, 1 arg, no delay
     WriteReg(Command::COLOR_MODE, {&color_coding_, 1});
 
-    // Magical unicorn dust, 16 args, no delay
+    // Positive gamma correction, 16 args, no delay
     tmp = 0x02U;
     WriteReg(Command::PV_GAMMA_CTRL, {&tmp, 1});
     tmp = 0x1CU;
@@ -349,7 +349,7 @@ class ST7735
     tmp = 0x10U;
     SendData({&tmp, 1});
 
-    // Sparkles and rainbows, 16 args, no delay
+    // Negative gamma correction, 16 args, no delay
     tmp = 0x03U;
     WriteReg(Command::NV_GAMMA_CTRL, {&tmp, 1});
     tmp = 0x1DU;
@@ -387,7 +387,7 @@ class ST7735
     tmp = 0x00U;
     WriteReg(Command::NORMAL_DISPLAY_OFF, {&tmp, 1});
 
-    // Main screen turn on, no delay
+    // Display on, no delay
     WriteReg(Command::DISPLAY_ON, {&tmp, 1});
 
     // Set the display Orientation and the default display window

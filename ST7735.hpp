@@ -18,9 +18,18 @@ depends: []
 #include "spi.hpp"
 #include "thread.hpp"
 
+/**
+ * @brief ST7735 彩色 LCD 驱动，通过 SPI 写屏，提供填充、位图与字符串绘制。
+ *        Driver for ST7735 color LCDs; writes the screen over SPI and provides fill,
+ *        bitmap and string drawing.
+ */
 class ST7735
 {
  public:
+  /**
+   * @brief ST7735 命令寄存器地址。
+   *        ST7735 command register addresses.
+   */
   enum Command : uint8_t
   {
     NOP = 0x00,
@@ -80,57 +89,77 @@ class ST7735
     VCOM4_LEVEL = 0xFF
   };
 
-  /// 屏幕尺寸 / Screen size
+  /**
+   * @brief 屏幕尺寸。
+   *        Screen size.
+   */
   enum ScreenType : uint8_t
   {
-    SCREEN_1_8 = 0x00,
-    SCREEN_0_9 = 0x01,
-    SCREEN_1_8A = 0x02
+    SCREEN_1_8 = 0x00,  ///< 1.8 英寸，128 x 160 1.8 inch, 128 x 160
+    SCREEN_0_9 = 0x01,  ///< 0.96 英寸，80 x 160 0.96 inch, 80 x 160
+    SCREEN_1_8A = 0x02  ///< 1.8 英寸变体，128 x 160 1.8 inch variant, 128 x 160
   };
 
-  /// 面板类型 / Panel type
+  /**
+   * @brief 面板厂商。
+   *        Panel vendor.
+   */
   enum PanelType : uint8_t
   {
-    HANNSTAR_PANEL = 0x00,
-    BOE_PANEL = 0x01
+    HANNSTAR_PANEL = 0x00,  ///< Hannstar 面板 Hannstar panel
+    BOE_PANEL = 0x01        ///< BOE 面板 BOE panel
   };
 
-  /// 方向 / Orientation
+  /**
+   * @brief 显示方向。
+   *        Display orientation.
+   */
   enum Orientation : uint8_t
   {
-    PORTRAIT = 0x00,
-    PORTRAIT_ROT180 = 0x01,
-    LANDSCAPE = 0x02,
-    LANDSCAPE_ROT180 = 0x03
+    PORTRAIT = 0x00,         ///< 竖屏 Portrait
+    PORTRAIT_ROT180 = 0x01,  ///< 竖屏旋转 180 度 Portrait rotated by 180 degrees
+    LANDSCAPE = 0x02,        ///< 横屏 Landscape
+    LANDSCAPE_ROT180 = 0x03  ///< 横屏旋转 180 度 Landscape rotated by 180 degrees
   };
 
-  /// 像素格式 / Pixel format
+  /**
+   * @brief 像素格式，枚举值等于 COLOR_MODE 寄存器取值。
+   *        Pixel format; the enumerator value equals the COLOR_MODE register value.
+   */
   enum PixelFormat : uint8_t
   {
-    FORMAT_RGB444 = 0x03,
-    FORMAT_RGB565 = 0x05,
-    FORMAT_RGB666 = 0x06,
-    FORMAT_DEFAULT = FORMAT_RGB565
+    FORMAT_RGB444 = 0x03,           ///< 12 位 RGB 12-bit RGB
+    FORMAT_RGB565 = 0x05,           ///< 16 位 RGB 16-bit RGB
+    FORMAT_RGB666 = 0x06,           ///< 18 位 RGB 18-bit RGB
+    FORMAT_DEFAULT = FORMAT_RGB565  ///< 默认格式 Default format
   };
 
-  /// 屏幕物理宽高 / Screen physical size
-  static constexpr uint16_t WIDTH_1_8 = 128;
-  static constexpr uint16_t HEIGHT_1_8 = 160;
-  static constexpr uint16_t WIDTH_0_9 = 80;
-  static constexpr uint16_t HEIGHT_0_9 = 160;
+  static constexpr uint16_t WIDTH_1_8 = 128;   ///< 1.8 英寸屏宽 1.8 inch width
+  static constexpr uint16_t HEIGHT_1_8 = 160;  ///< 1.8 英寸屏高 1.8 inch height
+  static constexpr uint16_t WIDTH_0_9 = 80;    ///< 0.96 英寸屏宽 0.96 inch width
+  static constexpr uint16_t HEIGHT_0_9 = 160;  ///< 0.96 英寸屏高 0.96 inch height
 
-  /// 方向->MADCTL设置表（不变） / Orientation->MADCTL table
+  /**
+   * @brief 方向到 MADCTL 取值的对照表，每个方向两列。
+   *        MADCTL values for each orientation, two columns per orientation.
+   */
   static constexpr uint32_t OrientationTab[4][2] = {
       {0x40U, 0xC0U}, {0x80U, 0x00U}, {0x20U, 0x60U}, {0xE0U, 0xA0U}};
 
-  /// RGB/BGR
+  /**
+   * @brief 颜色分量顺序，枚举值等于 MADCTL 中的 RGB/BGR 位。
+   *        Color component order; the enumerator value equals the RGB/BGR bit of MADCTL.
+   */
   enum RGBOrder : uint8_t
   {
-    LCD_RGB = 0x00,
-    LCD_BGR = 0x08
+    LCD_RGB = 0x00,  ///< RGB 顺序 RGB order
+    LCD_BGR = 0x08   ///< BGR 顺序 BGR order
   };
 
-  /// 颜色
+  /**
+   * @brief 常用颜色，RGB565 取值。
+   *        Common colors as RGB565 values.
+   */
   enum Color : uint16_t
   {
     WHITE = 0xFFFF,
@@ -152,6 +181,28 @@ class ST7735
     GRAYBLUE = 0x5458
   };
 
+  /**
+   * @brief 构造 ST7735：配置 GPIO、背光 PWM 与 SPI，执行初始化序列并清屏显示启动文字。
+   *        Construct ST7735: configure the GPIOs, the backlight PWM and the SPI, run the
+   *        init sequence, clear the screen and print the start-up text.
+   *
+   * @param spi_cs SPI 片选 GPIO。
+   *               SPI chip-select GPIO.
+   * @param spi_rs 数据/命令选择 GPIO。
+   *               Data/command select GPIO.
+   * @param pwm 背光 PWM。
+   *            Backlight PWM.
+   * @param spi 屏幕所在的 SPI 总线。
+   *            SPI bus of the display.
+   * @param panel 面板厂商。
+   *              Panel vendor.
+   * @param type 屏幕尺寸。
+   *             Screen size.
+   * @param orientation 显示方向。
+   *                    Display orientation.
+   * @param format 写入 COLOR_MODE 的像素格式。
+   *               Pixel format written to COLOR_MODE.
+   */
   ST7735(
       LibXR::GPIO& spi_cs,
       LibXR::GPIO& spi_rs,
@@ -197,6 +248,15 @@ class ST7735
     ShowString(Color::BLACK, Color::WHITE, 0, 12, width_, 16, 12, project_url);
   }
 
+  /**
+   * @brief 写命令寄存器，data 非空时随后写入参数。
+   *        Write a command register, followed by the arguments when data is not empty.
+   *
+   * @param reg 命令寄存器地址。
+   *            Command register address.
+   * @param data 命令参数。
+   *             Command arguments.
+   */
   void WriteReg(uint8_t reg, LibXR::RawData data)
   {
     st7735_spi_cs_->Write(false);
@@ -210,6 +270,13 @@ class ST7735
     st7735_spi_cs_->Write(true);
   }
 
+  /**
+   * @brief 以数据模式写入一段原始数据。
+   *        Write a block of raw data in data mode.
+   *
+   * @param data 待写入的数据。
+   *             Data to write.
+   */
   void SendData(LibXR::RawData data)
   {
     st7735_spi_cs_->Write(false);
@@ -217,6 +284,10 @@ class ST7735
     st7735_spi_cs_->Write(true);
   }
 
+  /**
+   * @brief 执行 ST7735 初始化序列。
+   *        Run the ST7735 init sequence.
+   */
   void Init()
   {
     uint8_t tmp;
@@ -394,6 +465,11 @@ class ST7735
     SetOrientation();
   }
 
+  /**
+   * @brief 按显示方向与屏幕尺寸设置宽高、显示窗口与 MADCTL。
+   *        Set the width, height, display window and MADCTL from the orientation and
+   *        screen size.
+   */
   void SetOrientation()
   {
     uint8_t tmp;
@@ -439,6 +515,16 @@ class ST7735
     WriteReg(Command::MADCTL, {&tmp, 1});
   }
 
+  /**
+   * @brief 设置覆盖整个屏幕的显示窗口，起点按面板与方向修正。
+   *        Set the display window covering the whole screen, with the origin corrected
+   *        for the panel and orientation.
+   *
+   * @param Xpos 窗口起点的列。
+   *             Column of the window origin.
+   * @param Ypos 窗口起点的行。
+   *             Row of the window origin.
+   */
   void SetDisplayWindow(uint32_t Xpos, uint32_t Ypos)
   {
     uint8_t tmp;
@@ -518,6 +604,22 @@ class ST7735
     SendData({&tmp, 1});
   }
 
+  /**
+   * @brief 用单一颜色填充矩形，矩形超出屏幕时忽略该调用。
+   *        Fill a rectangle with one color; the call is ignored when the rectangle
+   *        exceeds the screen.
+   *
+   * @param Xpos 矩形左上角的列。
+   *             Column of the top-left corner.
+   * @param Ypos 矩形左上角的行。
+   *             Row of the top-left corner.
+   * @param Width 矩形宽度，单位像素。
+   *              Rectangle width in pixels.
+   * @param Height 矩形高度，单位像素。
+   *               Rectangle height in pixels.
+   * @param Color RGB565 颜色。
+   *              RGB565 color.
+   */
   void FillRect(uint32_t Xpos, uint32_t Ypos, uint32_t Width, uint32_t Height,
                 uint32_t Color)
   {
@@ -547,6 +649,20 @@ class ST7735
     }
   }
 
+  /**
+   * @brief 设置绘图窗口并开始写显存，坐标按面板与方向修正。
+   *        Set the drawing window and start writing the RAM, with the coordinates
+   *        corrected for the panel and orientation.
+   *
+   * @param Xpos0 窗口起始列。
+   *              First column of the window.
+   * @param Ypos0 窗口起始行。
+   *              First row of the window.
+   * @param Xpos1 窗口结束列。
+   *              Last column of the window.
+   * @param Ypos1 窗口结束行。
+   *              Last row of the window.
+   */
   void SetWindow(uint32_t Xpos0, uint32_t Ypos0, uint32_t Xpos1, uint32_t Ypos1)
   {
     uint8_t tmp;
@@ -631,6 +747,28 @@ class ST7735
     WriteReg(Command::WRITE_RAM, {nullptr, 0});
   }
 
+  /**
+   * @brief 在指定区域内绘制 ASCII 字符串，超出区域宽度时换行。
+   *        Draw an ASCII string inside the given area, wrapping at the area width.
+   *
+   * @param point_color 前景色，RGB565。
+   *                    Foreground color, RGB565.
+   * @param back_color 背景色，RGB565。
+   *                   Background color, RGB565.
+   * @param x 区域左上角的列。
+   *          Column of the top-left corner of the area.
+   * @param y 区域左上角的行。
+   *          Row of the top-left corner of the area.
+   * @param width 区域宽度，单位像素。
+   *              Area width in pixels.
+   * @param height 区域高度，单位像素。
+   *               Area height in pixels.
+   * @param size 字体高度，12（6x12）或 16（8x16）。
+   *             Font height, 12 (6x12) or 16 (8x16).
+   * @param data 以 '\0' 结尾的字符串，遇到可显示 ASCII 范围之外的字符时停止。
+   *             Null-terminated string; drawing stops at a character outside the
+   *             printable ASCII range.
+   */
   void ShowString(uint16_t point_color, uint16_t back_color, uint16_t x, uint16_t y,
                   uint16_t width, uint16_t height, uint8_t size, const char* data)
   {
@@ -651,6 +789,23 @@ class ST7735
     }
   }
 
+  /**
+   * @brief 绘制单个 ASCII 字符。
+   *        Draw one ASCII character.
+   *
+   * @param point_color 前景色，RGB565。
+   *                    Foreground color, RGB565.
+   * @param back_color 背景色，RGB565。
+   *                   Background color, RGB565.
+   * @param x 字符左上角的列。
+   *          Column of the top-left corner of the character.
+   * @param y 字符左上角的行。
+   *          Row of the top-left corner of the character.
+   * @param num 待绘制的字符。
+   *            Character to draw.
+   * @param size 字体高度，12（6x12）或 16（8x16）。
+   *             Font height, 12 (6x12) or 16 (8x16).
+   */
   void ShowChar(uint16_t point_color, uint16_t back_color, uint16_t x, uint16_t y,
                 uint8_t num, uint8_t size)
   {
@@ -709,6 +864,22 @@ class ST7735
     point_color = colortemp;
   }
 
+  /**
+   * @brief 写入一块像素数据，每像素 2 字节，高字节在前；矩形超出屏幕时忽略该调用。
+   *        Write a block of pixels, 2 bytes per pixel with the high byte first; the
+   *        call is ignored when the rectangle exceeds the screen.
+   *
+   * @param Xpos 矩形左上角的列。
+   *             Column of the top-left corner.
+   * @param Ypos 矩形左上角的行。
+   *             Row of the top-left corner.
+   * @param pData 像素数据，长度为 Width * Height * 2 字节。
+   *              Pixel data of Width * Height * 2 bytes.
+   * @param Width 矩形宽度，单位像素。
+   *              Rectangle width in pixels.
+   * @param Height 矩形高度，单位像素。
+   *               Rectangle height in pixels.
+   */
   void FillRGBRect(uint32_t Xpos, uint32_t Ypos, uint8_t* pData, uint32_t Width,
                    uint32_t Height)
   {
@@ -722,9 +893,31 @@ class ST7735
     SendData({pData, Width * Height * 2});
   }
 
+  /**
+   * @brief 设置背光占空比。
+   *        Set the backlight duty cycle.
+   *
+   * @param brightness 占空比，范围 0.0 到 1.0。
+   *                   Duty cycle in the range 0.0 to 1.0.
+   */
   void SetBrightness(float brightness) { st7735_pwm_->SetDutyCycle(brightness); }
 
+  /**
+   * @brief 获取当前方向下的屏幕宽度。
+   *        Get the screen width in the current orientation.
+   *
+   * @return 屏幕宽度，单位像素。
+   *         Screen width in pixels.
+   */
   uint16_t GetWidth() { return width_; }
+
+  /**
+   * @brief 获取当前方向下的屏幕高度。
+   *        Get the screen height in the current orientation.
+   *
+   * @return 屏幕高度，单位像素。
+   *         Screen height in pixels.
+   */
   uint16_t GetHeight() { return height_; }
 
  private:

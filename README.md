@@ -1,6 +1,6 @@
 # ST7735
 
-ST7735 彩色 LCD 显示屏驱动模块（SPI），适配 0.96 / 1.8 英寸面板 / Driver module for ST7735 color LCDs over SPI (0.96" and 1.8" panels)
+ST7735 彩色 LCD 显示屏驱动模块（SPI），适配 0.96 英寸与 1.8 英寸面板 / Driver Module for ST7735 color LCDs over SPI (0.96" and 1.8" panels)
 
 ## 1. 模块作用 / Purpose
 
@@ -93,7 +93,7 @@ Configuration parameters:
 
 `xrobot instance add xrobot-org/ST7735` 写入的实例，依赖填写为 BSP 通过 `XR_REGISTER`（硬件注册）注册的名称：
 
-An instance written by `xrobot instance add xrobot-org/ST7735`, with the dependencies set to names registered by the BSP's `XR_REGISTER` (Registration):
+An instance written by `xrobot instance add xrobot-org/ST7735`, with the dependencies set to names registered by the BSP with `XR_REGISTER` (Registration):
 
 ```yaml
 modules:

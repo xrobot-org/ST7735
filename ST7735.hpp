@@ -2,7 +2,7 @@
 
 // clang-format off
 /* === MODULE MANIFEST V2 ===
-module_description: ST7735 彩色 LCD 显示屏驱动模块（SPI），适配 0.96 / 1.8 英寸面板 / Driver module for ST7735 color LCDs over SPI (0.96" and 1.8" panels)
+module_description: ST7735 彩色 LCD 显示屏驱动模块（SPI），适配 0.96 英寸与 1.8 英寸面板 / Driver Module for ST7735 color LCDs over SPI (0.96" and 1.8" panels)
 depends: []
 === END MANIFEST === */
 // clang-format on
